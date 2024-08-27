@@ -13,5 +13,11 @@
             "database": "recipe_data",
             "username": "root"
         }
+    ],
+    "java.project.sourcePaths": [
+        "."
+    ],
+    "java.project.referencedLibraries": [
+        "libs/mysql-connector-j-9.0.0/mysql-connector-java-9.0.0.jar"
     ]
 }
