@@ -43,7 +43,7 @@ public class Backend {
         try {
             statement = conn.createStatement();
 
-            // Create table recipes if not exists
+            // Create table recipes if it doesn't exist already
             String newRecipeTableSQL = "CREATE TABLE IF NOT EXISTS recipes (" +
                     "recipe_id INT AUTO_INCREMENT PRIMARY KEY," +
                     "recipe_name VARCHAR(255) NOT NULL," +
@@ -99,10 +99,6 @@ public class Backend {
         }
     }
 
-    public static void selectData(Connection conn) {
-        
-    }
-
     public static int insertRecipe(Connection conn, String recipeName, String instructions, double prepTime, double cookTime) throws SQLException {
         String checkRecipeSQL = "SELECT recipe_id FROM recipes WHERE recipe_name = ?";
         try (PreparedStatement checkStmnt = conn.prepareStatement(checkRecipeSQL)) {
@@ -115,24 +111,15 @@ public class Backend {
         }
 
         String insertRecipeSQL = "INSERT INTO recipes (recipe_name, instructions, prepTime, cookTime) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement prepStmnt = conn.prepareStatement(insertRecipeSQL, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement prepStmnt = conn.prepareStatement(insertRecipeSQL)) {
             prepStmnt.setString(1, recipeName);
             prepStmnt.setString(2, instructions);
             prepStmnt.setDouble(3, prepTime);
             prepStmnt.setDouble(4, cookTime);
             prepStmnt.executeUpdate();
-
-            try (ResultSet generatedKeys = prepStmnt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    return generatedKeys.getInt(1);
-                } else {
-                    throw new SQLException("Creating recipe failed, no ID obtained.");
-                }
-            }
         }
     }
 
-    // Method to insert an ingredient without returning the ID
     public static void insertIngredient(Connection conn, String ingredientName, int quantity, double cost) throws SQLException {
         String checkIngredientSQL = "SELECT ingredient_id FROM ingredients WHERE ingredient_name = ?";
         try (PreparedStatement checkStmnt = conn.prepareStatement(checkIngredientSQL)) {
@@ -153,7 +140,6 @@ public class Backend {
         }
     }
 
-    // Method to insert a tool without returning the ID
     public static void insertTool(Connection conn, String toolName, boolean isClean) throws SQLException {
         String checkToolSQL = "SELECT tool_id FROM tools WHERE tool_name = ?";
         try (PreparedStatement checkStmnt = conn.prepareStatement(checkToolSQL)) {
@@ -189,15 +175,14 @@ public class Backend {
         }
 
         String insertRecipeIngredientSQL = "INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity) VALUES (?, ?, ?)";
-        try (PreparedStatement insertStatement = conn.prepareStatement(insertRecipeIngredientSQL)) {
-            insertStatement.setInt(1, recipeId);
-            insertStatement.setInt(2, ingredientId);
-            insertStatement.setInt(3, quantity);
-            insertStatement.executeUpdate();
+        try (PreparedStatement insStmnt = conn.prepareStatement(insertRecipeIngredientSQL)) {
+            insStmnt.setInt(1, recipeId);
+            insStmnt.setInt(2, ingredientId);
+            insStmnt.setInt(3, quantity);
+            insStmnt.executeUpdate();
         }
     }
 
-    // Method to insert a recipe-tool relationship by recipe name
     public static void insertRecipeToolByName(Connection conn, String recipeName, String toolName) throws SQLException {
         int recipeId = getRecipeId(conn, recipeName);
         int toolId = getToolId(conn, toolName);
@@ -214,21 +199,21 @@ public class Backend {
         }
 
         String insertRecipeToolSQL = "INSERT INTO recipe_tools (recipe_id, tool_id) VALUES (?, ?)";
-        try (PreparedStatement insertStatement = conn.prepareStatement(insertRecipeToolSQL)) {
-            insertStatement.setInt(1, recipeId);
-            insertStatement.setInt(2, toolId);
-            insertStatement.executeUpdate();
+        try (PreparedStatement insStmnt = conn.prepareStatement(insertRecipeToolSQL)) {
+            insStmnt.setInt(1, recipeId);
+            insStmnt.setInt(2, toolId);
+            insStmnt.executeUpdate();
         }
     }
 
     // Helper method to get recipe ID by name
     public static int getRecipeId(Connection conn, String recipeName) throws SQLException {
         String selectRecipeSQL = "SELECT recipe_id FROM recipes WHERE recipe_name = ?";
-        try (PreparedStatement selectStatement = conn.prepareStatement(selectRecipeSQL)) {
-            selectStatement.setString(1, recipeName);
-            try (ResultSet resultSet = selectStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    return resultSet.getInt("recipe_id");
+        try (PreparedStatement slctStmnt = conn.prepareStatement(selectRecipeSQL)) {
+            slctStmnt.setString(1, recipeName);
+            try (ResultSet res = slctStmnt.executeQuery()) {
+                if (res.next()) {
+                    return res.getInt("recipe_id");
                 } else {
                     throw new SQLException("Recipe not found: " + recipeName);
                 }
@@ -239,11 +224,11 @@ public class Backend {
     // Helper method to get ingredient ID by name
     public static int getIngredientId(Connection conn, String ingredientName) throws SQLException {
         String selectIngredientSQL = "SELECT ingredient_id FROM ingredients WHERE ingredient_name = ?";
-        try (PreparedStatement selectStatement = conn.prepareStatement(selectIngredientSQL)) {
-            selectStatement.setString(1, ingredientName);
-            try (ResultSet resultSet = selectStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    return resultSet.getInt("ingredient_id");
+        try (PreparedStatement slctStmnt = conn.prepareStatement(selectIngredientSQL)) {
+            slctStmnt.setString(1, ingredientName);
+            try (ResultSet res = slctStmnt.executeQuery()) {
+                if (res.next()) {
+                    return res.getInt("ingredient_id");
                 } else {
                     throw new SQLException("Ingredient not found: " + ingredientName);
                 }
@@ -254,11 +239,11 @@ public class Backend {
     // Helper method to get tool ID by name
     public static int getToolId(Connection conn, String toolName) throws SQLException {
         String selectToolSQL = "SELECT tool_id FROM tools WHERE tool_name = ?";
-        try (PreparedStatement selectStatement = conn.prepareStatement(selectToolSQL)) {
-            selectStatement.setString(1, toolName);
-            try (ResultSet resultSet = selectStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    return resultSet.getInt("tool_id");
+        try (PreparedStatement slctStmnt = conn.prepareStatement(selectToolSQL)) {
+            slctStmnt.setString(1, toolName);
+            try (ResultSet res = slctStmnt.executeQuery()) {
+                if (res.next()) {
+                    return res.getInt("tool_id");
                 } else {
                     throw new SQLException("Tool not found: " + toolName);
                 }
@@ -266,11 +251,104 @@ public class Backend {
         }
     }
     
-    public static void deleteData(Connection conn) {
-        
+    public static void deleteRecipe(Connection conn, String recipeName) throws SQLException{
+        int recipeID = getRecipeId(conn, recipeName);
+
+        String deleteRecipeIngredientSQL = "DELETE FROM recipe_ingredients WHERE recipe_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteRecipeIngredientSQL)){
+            prepStmnt.setInt(1, recipeID);
+            prepStmnt.executeUpdate();
+        }
+
+        String deleteRecipeToolSQL = "DELETE FROM recipe_tools WHERE recipe_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteRecipeToolSQL)){
+            prepStmnt.setInt(1, recipeID);
+            prepStmnt.executeUpdate();
+        }
+
+        String deleteRecipeSQL = "DELETE FROM recipes WHERE recipe_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteRecipeSQL)){
+            prepStmnt.setInt(1, recipeID);
+            prepStmnt.executeUpdate();
+            System.out.println("Deleted recipe: " + recipeName);
+        }
+    }
+
+    public static void deleteIngredient(Connection conn, String ingredientName) throws SQLException{
+        int ingredientId = getIngredientId(conn, ingredientName);
+
+        String deleteRecipeIngredientSQL = "DELETE FROM recipe_ingredients WHERE ingredient_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteRecipeIngredientSQL)){
+            prepStmnt.setInt(1, ingredientId);
+            prepStmnt.executeUpdate();
+        }
+
+        String deleteIngredientSQL = "DELETE FROM ingredients WHERE ingredient_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteIngredientSQL)){
+            prepStmnt.setInt(1, ingredientId);
+            prepStmnt.executeUpdate();
+            System.out.println("Deleted ingredient: " + ingredientName);
+        }
+    }
+
+    public static void deleteTool(Connection conn, String toolName) throws SQLException{
+        int toolId = getToolId(conn, toolName);
+
+        String deleteRecipeToolSQL = "DELETE FROM recipe_tools WHERE tool_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteRecipeToolSQL)){
+            prepStmnt.setInt(1, toolId);
+            prepStmnt.executeUpdate();
+        }
+
+        String deleteToolSQL = "DELETE FROM tools WHERE tool_id = ?";
+        try(PreparedStatement prepStmnt  = conn.prepareStatement(deleteToolSQL)){
+            prepStmnt.setInt(1, toolId);
+            prepStmnt.executeUpdate();
+            System.out.println("Deleted tool: " + toolName);
+        }
+    }
+
+    public static void deleteIngredientFromRecipe(Connection conn, String recipeName, String ingredientName) throws SQLException{
+        int recipeId = getRecipeId(conn, recipeName);
+        int ingredientId = getIngredientId(conn, ingredientName);
+
+        String deleteRecipeIngredientSQL = "DELETE FROM recipe_ingredients WHERE recipe_id = ? AND ingredient_id = ?";
+        try(PreparedStatement prepStmnt = conn.prepareStatement(deleteRecipeIngredientSQL)){
+            prepStmnt.setInt(1, recipeId);
+            prepStmnt.setInt(2, ingredientId);
+            int rows = prepStmnt.executeUpdate();
+
+            if(rows>0){
+                System.out.println("Deleted ingredient '" + ingredientName + "'' from recipe '" + recipeName + "'");
+            }else{
+                System.out.println("No ingredient with name '" + ingredientName + "'' found in recipe '" + recipeName + "'");
+            }
+        }
+    }
+
+    public static void deleteToolFromRecipe(Connection conn, String recipeName, String toolName) throws SQLException{
+        int recipeId = getRecipeId(conn, recipeName);
+        int toolId = getIngredientId(conn, toolName);
+
+        String deleteRecipeToolSQL = "DELETE FROM recipe_tools WHERE recipe_id = ? AND tool_id = ?";
+        try(PreparedStatement prepStmnt = conn.prepareStatement(deleteRecipeToolSQL)){
+            prepStmnt.setInt(1, recipeId);
+            prepStmnt.setInt(2, toolId);
+            int rows = prepStmnt.executeUpdate();
+
+            if(rows>0){
+                System.out.println("Deleted tool '" + toolName + "'' from recipe '" + recipeName + "'");
+            }else{
+                System.out.println("No tool with name '" + toolId + "'' found in recipe '" + recipeName + "'");
+            }
+        }
     }
 
     public static void updateData(Connection conn) {
+        
+    }
+
+    public static void selectData(Connection conn) {
         
     }
 }
