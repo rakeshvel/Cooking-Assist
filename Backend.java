@@ -99,7 +99,84 @@ public class Backend {
         }
     }
 
-    public static int insertRecipe(Connection conn, String recipeName, String instructions, double prepTime, double cookTime) throws SQLException {
+    public static boolean availableRecipe(Connection conn, String recipeName) throws SQLException{
+        int recipeId = getRecipeId(conn, recipeName);
+        boolean check = true;
+
+        String getIngredientSQL= "SELECT i.ingredient_id, i.ingredient_name, i.quantity, ri.quantity, AS used FROM ingredients i " +
+        "JOIN recipe_ingredients ri ON i.ingredient_id = ri.ingredient_id WHERE ri.recipe_id = ?";
+        try(PreparedStatement getStmnt = conn.prepareStatement(getIngredientSQL)){
+            getStmnt.setInt(1, recipeId);
+            try(ResultSet res = getStmnt.executeQuery()){
+                while(res.next()){
+                    String name = res.getString("ingredient_name");
+                    double current = res.getDouble("quantity");
+                    double used = res.getDouble("used");
+
+                    if(current<used){
+                        System.out.println("Only " +current+ " of '" + name + "' available when " +used+" is required.");
+                        check = false;
+                    }
+                }
+            }
+        }
+
+        String checkToolSQL = "SELECT t.tool_name, t.is_clean FROM tools t " +
+        "JOIN recipe_tools rt ON t.tool_id = rt.tool_id WHERE recipe_id = ?";
+        try(PreparedStatement chckStmnt = conn.prepareStatement(checkToolSQL)){
+            chckStmnt.setInt(1, recipeId);
+            try(ResultSet res = chckStmnt.executeQuery()){
+                while(res.next()){
+                    String name = res.getString("tool_name");
+                    boolean clean = res.getBoolean("is_clean");
+                    if(!clean){
+                        System.out.println(name + " is not clean.");
+                        check = false;
+                    }
+                }
+            }
+        }
+        return check;
+    }
+
+    public static void useRecipe(Connection conn, String recipeName) throws SQLException {
+        if(!availableRecipe(conn, recipeName))
+            throw new SQLException("Recipe missing ingredients or clean tools");
+        int recipeId = getRecipeId(conn, recipeName);
+
+        String getIngredientSQL= "SELECT i.ingredient_id, i.ingredient_name, i.quantity, ri.quantity, AS used FROM ingredients i " +
+        "JOIN recipe_ingredients ri ON i.ingredient_id = ri.ingredient_id WHERE ri.recipe_id = ?";
+        try(PreparedStatement getStmnt = conn.prepareStatement(getIngredientSQL)){
+            getStmnt.setInt(1, recipeId);
+            try(ResultSet res = getStmnt.executeQuery()){
+                while(res.next()){
+                    String name = res.getString("ingredient_name");
+                    int id = res.getInt("ingredient_id");
+                    double current = res.getDouble("quantity");
+                    double used = res.getDouble("used");
+
+                    double update = current-used;
+
+                    String updateIngredientSQL = "UPDATE ingredients SET quantity = ? where ingredient_id = ?";
+                    try(PreparedStatement prepStmnt = conn.prepareStatement(updateIngredientSQL)){
+                        prepStmnt.setDouble(1, update);
+                        prepStmnt.setInt(2, id);
+                        prepStmnt.executeUpdate();
+                    }
+
+                    System.out.println("Ingredient '" + name + "' has new quantity of " + update);
+                }
+            }
+        }
+
+        String getToolSQL = "UPDATE tools t JOIN recipe_tools rt ON t.tool_id = rt.tool_id " +
+        "SET t.is_clean = false WHERE rt.recipe_id = ?";
+        try(PreparedStatement toolStmnt = conn.prepareStatement(getToolSQL)){
+            toolStmnt.setInt(1, recipeId);
+        }
+    }
+
+    public static void insertRecipe(Connection conn, String recipeName, String instructions, double prepTime, double cookTime) throws SQLException {
         String checkRecipeSQL = "SELECT recipe_id FROM recipes WHERE recipe_name = ?";
         try (PreparedStatement checkStmnt = conn.prepareStatement(checkRecipeSQL)) {
             checkStmnt.setString(1, recipeName);
@@ -180,10 +257,11 @@ public class Backend {
             insStmnt.setInt(2, ingredientId);
             insStmnt.setInt(3, quantity);
             insStmnt.executeUpdate();
+            System.out.println("Inserted ingredient '" + ingredientName + "' into recipe '" + recipeName + "'");
         }
     }
 
-    public static void insertRecipeToolByName(Connection conn, String recipeName, String toolName) throws SQLException {
+    public static void insertRecipeTool(Connection conn, String recipeName, String toolName) throws SQLException {
         int recipeId = getRecipeId(conn, recipeName);
         int toolId = getToolId(conn, toolName);
 
@@ -203,6 +281,7 @@ public class Backend {
             insStmnt.setInt(1, recipeId);
             insStmnt.setInt(2, toolId);
             insStmnt.executeUpdate();
+            System.out.println("Inserted tool '" + toolName + "' into recipe '" + recipeName + "'");
         }
     }
 
