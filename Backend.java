@@ -423,11 +423,211 @@ public class Backend {
         }
     }
 
-    public static void updateData(Connection conn) {
-        
+    public static void updateRecipe(Connection conn, String name, String instructions, double prepTime, double cookTime) throws SQLException{
+        int recipeId = getRecipeId(conn, name);
+
+        String updateRecipeSQL = "UPDATE recipes SET recipe_name = ?, instructions = ?, prep_time = ?, cook_time = ?, total_time = ? WHERE recipe_id = ?";
+        try(PreparedStatement prepStmnt = conn.prepareStatement(updateRecipeSQL)){
+            prepStmnt.setString(1, name);
+            prepStmnt.setString(2, instructions);
+            prepStmnt.setDouble(3, prepTime);
+            prepStmnt.setDouble(4, cookTime);
+            prepStmnt.setInt(5, recipeId);
+        }
     }
 
-    public static void selectData(Connection conn) {
+    public static void updateIngredient(Connection conn, String name, double quantity, double cost) throws SQLException{
+        int ingredientId = getIngredientId(conn, name);
+
+        String updateIngredientSQL = "UPDATE ingredients SET ingredient_name = ?, quantity = ?, cost = ? WHERE ingredient_id = ?";
+        try(PreparedStatement prepStmnt = conn.prepareStatement(updateIngredientSQL)){
+            prepStmnt.setString(1, name);
+            prepStmnt.setDouble(2, quantity);
+            prepStmnt.setDouble(3, cost);
+            prepStmnt.setInt(4, ingredientId);
+        }
+    }
+
+    public static void updateTool(Connection conn, String name, boolean isClean) throws SQLException{
+        int toolId = getToolId(conn, name);
+
+        String updateTool = "UPDATE tools SET tool_name = ?, is_clean = ? WHERE tool_id = ?";
+        try(PreparedStatement prepStmnt = conn.prepareStatement(updateTool)){
+            prepStmnt.setString(1, name);
+            prepStmnt.setBoolean(2, isClean);
+            prepStmnt.setInt(3, toolId);
+        }
+    }
+
+    public static void selectRecipesByName(Connection conn) throws SQLException{
+        String recipesSQL = "SELECT recipe_name, instructions, prep_time, cook_time, total_time FROM recipes ORDER BY recipe_name ASC";
         
+        try(PreparedStatement prepStmnt = conn.prepareStatement(recipesSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Recipes sorted by name:");
+            
+            while (res.next()) {
+                String name = res.getString("recipe_name");
+                String instructions = res.getString("instructions");
+                double prepTime = res.getDouble("prep_time");
+                double cookTime = res.getDouble("cook_time");
+                double totalTime = res.getDouble("total_time");
+    
+                System.out.println("Name: " + name);
+                System.out.println("Instructions: " + instructions);
+                System.out.println("Prep Time: " + prepTime + " min");
+                System.out.println("Cook Time: " + cookTime + " min");
+                System.out.println("Total Time: " + totalTime + " min");
+            }
+        }
+    }
+
+    public static void selectRecipesByPrice(Connection conn) throws SQLException{
+        String recipesSQL = "SELECT r.recipe_name, r.instructions, r.prep_time, r.cook_time, r.total_time, " +
+                            "SUM(i.cost * ri.quantity) AS total_cost FROM recipes r " +
+                            "JOIN recipe_ingredients ri ON r.recipe_id = ri.recipe_id " +
+                            "JOIN ingredients i ON ri.ingredient_id = i.ingredient_id " +
+                            "GROUP BY r.recipe_name, r.instructions, r.prep_time, r.cook_time, r.total_time ORDER BY total_cost ASC";
+        
+        try(PreparedStatement prepStmnt = conn.prepareStatement(recipesSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Recipes sorted by price:");
+            
+            while (res.next()) {
+                String name = res.getString("recipe_name");
+                String instructions = res.getString("instructions");
+                double prepTime = res.getDouble("prep_time");
+                double cookTime = res.getDouble("cook_time");
+                double totalTime = res.getDouble("total_time");
+                double totalCost = res.getDouble("total_cost");
+    
+                System.out.println("Name: " + name);
+                System.out.println("Instructions: " + instructions);
+                System.out.println("Prep Time: " + prepTime + " min");
+                System.out.println("Cook Time: " + cookTime + " min");
+                System.out.println("Total Time: " + totalTime + " min");
+                System.out.println("Total Cost: $" + totalCost);
+            }
+        }
+    }
+
+    public static void selectRecipesMakeableByName(Connection conn) throws SQLException {
+        String recipesSQL = "SELECT r.recipe_name, r.instructions, r.prep_time, r.cook_time, r.total_time FROM recipes r " +
+                            "WHERE NOT EXISTS (SELECT 1 FROM recipe_ingredients ri JOIN ingredients i " +
+                            "ON ri.ingredient_id = i.ingredient_id WHERE ri.recipe_id = r.recipe_id AND i.quantity < ri.quantity) " +
+                            "AND NOT EXISTS (SELECT 1 FROM recipe_tools rt JOIN tools t ON rt.tool_id = t.tool_id " +
+                            "WHERE rt.recipe_id = r.recipe_id AND t.is_clean = false) ORDER BY r.recipe_name ASC";
+        
+        try(PreparedStatement prepStmnt = conn.prepareStatement(recipesSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Recipes that can currently be made sorted by name:");
+            
+            while (res.next()) {
+                String name = res.getString("recipe_name");
+                String instructions = res.getString("instructions");
+                double prepTime = res.getDouble("prep_time");
+                double cookTime = res.getDouble("cook_time");
+                double totalTime = res.getDouble("total_time");
+    
+                System.out.println("Name: " + name);
+                System.out.println("Instructions: " + instructions);
+                System.out.println("Prep Time: " + prepTime + " min");
+                System.out.println("Cook Time: " + cookTime + " min");
+                System.out.println("Total Time: " + totalTime + " min");
+            }
+        }
+    }
+
+    //TODO
+    public static void selectRecipesMakeableByPrice(Connection conn) throws SQLException{
+
+    }
+
+    public static void selectIngredients(Connection conn) throws SQLException{
+        String ingredientsSQL = "SELECT ingredient_name, quantity, cost FROM ingredients ORDER BY ingredient_name ASC";
+
+        try(PreparedStatement prepStmnt = conn.prepareStatement(ingredientsSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Ingredients sorted by name:");
+            
+            while (res.next()) {
+                String name = res.getString("ingredient_name");
+                String quantity = res.getString("quantity");
+                String cost = res.getString("cost");
+    
+                System.out.println("Name: " + name);
+                System.out.println("Quantity: " + quantity);
+                System.out.println("Cost: $" + cost);
+            }
+        }
+    }
+
+    public static void selectIngredientsMin(Connection conn, double minQ) throws SQLException{
+        String ingredientsSQL = "SELECT ingredient_name, quantity, cost FROM ingredients WHERE quantity >= ? ORDER BY quantity DESC";
+
+        try(PreparedStatement prepStmnt = conn.prepareStatement(ingredientsSQL)){
+            prepStmnt.setDouble(1, minQ);
+
+            try(ResultSet res = prepStmnt.executeQuery()){
+                System.out.println("Ingredients with quantity greater than or equal to " + minQ + ":");
+                
+                while (res.next()) {
+                    String name = res.getString("ingredient_name");
+                    String quantity = res.getString("quantity");
+                    String cost = res.getString("cost");
+        
+                    System.out.println("Name: " + name);
+                    System.out.println("Quantity: " + quantity);
+                    System.out.println("Cost: $" + cost);
+                }
+            }
+        }
+    }
+
+    public static void selectIngredientsCheap(Connection conn, double maxP) throws SQLException{
+        String ingredientsSQL = "SELECT ingredient_name, quantity, cost FROM ingredients WHERE cost <= ? ORDER BY cost ASC";
+
+        try(PreparedStatement prepStmnt = conn.prepareStatement(ingredientsSQL)){
+            prepStmnt.setDouble(1, maxP);
+
+            try(ResultSet res = prepStmnt.executeQuery()){
+                System.out.println("Ingredients with cost below $" + maxP + ":");
+                
+                while (res.next()) {
+                    String name = res.getString("ingredient_name");
+                    String quantity = res.getString("quantity");
+                    String cost = res.getString("cost");
+        
+                    System.out.println("Name: " + name);
+                    System.out.println("Quantity: " + quantity);
+                    System.out.println("Cost: $" + cost);
+                }
+            }
+        }
+    }
+
+    public static void selectTools(Connection conn) throws SQLException{
+        String toolsSQL = "SELECT tool_name, is_clean FROM tools ORDER BY tool_name ASC";
+
+        try(PreparedStatement prepStmnt = conn.prepareStatement(toolsSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Tools sorted by name:");
+            
+            while (res.next()) {
+                String name = res.getString("tool_name");
+                boolean clean = res.getBoolean("is_clean");
+    
+                System.out.println("Name: " + name);
+                System.out.println("Clean: " + clean);
+            }
+        }
+    }
+
+    public static void selectToolsClean(Connection conn) throws SQLException {
+        String toolsSQL = "SELECT tool_name, is_clean FROM tools WHERE is_clean = true ORDER BY tool_name ASC";
+
+        try(PreparedStatement prepStmnt = conn.prepareStatement(toolsSQL); ResultSet res = prepStmnt.executeQuery()){
+            System.out.println("Clean tools sorted by name:");
+
+            while (res.next()) {
+                String name = res.getString("tool_name");
+                System.out.println("Name: " + name);
+            }
+        }
     }
 }
